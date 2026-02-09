@@ -70,7 +70,7 @@ createBackup(){
         dateVar=$(date '+%Y-%m-%d_%H-%M-%S')
 
         local backupFileDir
-        backupFileDir="$backupDir"backup_"$dateVar"_"$loopCounter"_"source.tar.gz"
+        backupFileDir="${backupDir}backup_${dateVar}_${loopCounter}_source.tar.gz"
         # echo "$backupFileDir"
 
         # cp -a "$sourceDir" "$backupFileDir" #changed -c to -R to copy sub directories also
@@ -85,15 +85,34 @@ createBackup(){
 
 cleanOldBackups() {
     local -n backupDir="$1"
+    local -n maxBackups="$2"
 
-    if [[ $(find "$backupDir" -mindepth 1 -maxdepth 1 -type d | wc -l) -gt 5 ]]
-    then
-        ls -Alt "$backupDir" | tail -n +6 | xargs -I{} rm -rf -- "$backupDir/{}"
+    shopt -s nullglob # prevents /*.tar.gz from being a literal string if no files exists within the array
+
+    #all backup paths
+    local backups=("$backupDir"/*.tar.gz)
+    local totalBackups="${#backups[@]}" #number of paths stored in the array
+
+    IFS=$'\n' backups=($(stat -c '%Y %n' "${backups[@]}" | sort -n | cut -d' ' -f2-))
+    unset IFS #modifes the format of the file
+
+    #skip cleaning condition
+    if (( totalBackups <= maxBackups )); then
+        echo "Cleanup skipped: $totalBackups backups present (limit: $maxBackups)." >&2
+        sleep 1
     else
-        echo "Logs deletetion criteria not met: No prev logs deleted!"
+        # Number of files to delete
+        local deleteCount=$(( totalBackups - maxBackups ))
+
+        echo "Cleaning up $deleteCount old backup(s)..." >&2
+
+        for (( i=0; i<deleteCount; i++ )); do
+            rm -- "${backups[i]}"
+        done
     fi
+
 }
 
 argValidate userDir userBackupDir noBackups
 createBackup userDir userBackupDir noBackups
-cleanOldBackups userBackupDir
+cleanOldBackups userBackupDir noBackups

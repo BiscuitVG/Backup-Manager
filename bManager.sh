@@ -35,14 +35,9 @@ argValidate() {
         echo "No directory path provided! please provide a directory path that you want to back up." >&2
         sleep 1
         exit 1
-    elif [ -d "$backupDir" ]
+    elif [ ! -d "$backupDir" ]
     then
-        echo "Provided backup path is available!" >&2
-        sleep 1
-    else
-        echo "Provided directory is not valid or doesnt exist!" >&2
-        sleep 1
-        exit 1
+        mkdir -p "$backupDir" || exit 3
     fi
 
     if [ "$maxBackups" -gt 0 ] && [ "$maxBackups" -le 5 ]
